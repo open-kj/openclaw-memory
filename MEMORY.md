@@ -172,6 +172,7 @@
 1. **交易后**：立即更新 MEMORY.md + cron任务 + handbook
 2. **学习后**：把重要内容合并到 MEMORY.md
 3. **发现错误**：立即纠正并记录到 MEMORY.md 的教训区
+4. **每次改动后**：git add + commit + push 到 open-kj/openclaw-memory
 
 ### cron job 规则
 - 周一到周五用 `1-5`，不能裸写 `* * *`
@@ -188,8 +189,11 @@
 ---
 
 ## 待完成任务
-- Tavily API Key 配置（联网搜索，账号 125198473@qq.com）
-- GitHub CLI 安装（未完成）
+- GitHub CLI 安装（已完成 ✅）
+- Tavily API（已完成 ✅）
+- GitHub 备份（已完成 ✅）
+- A股每日报告脚本（已完成 ✅）
+- tech-news-digest中文配置（已完成 ✅）
 
 ---
-*最后更新: 2026-03-21 21:30*
+*最后更新: 2026-03-21 23:13*
