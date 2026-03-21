@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "data-analysis": {
+      "version": "1.0.2",
+      "installedAt": 1773978251349
+    },
+    "china-stock-analysis": {
+      "version": "1.0.0",
+      "installedAt": 1773978847722
+    },
+    "tech-news-digest": {
+      "version": "3.15.0",
+      "installedAt": 1773978902095
+    },
+    "stock-price-query": {
+      "version": "1.0.7",
+      "installedAt": 1773980940523
+    },
+    "productivity": {
+      "version": "1.0.4",
+      "installedAt": 1773981303018
+    },
+    "tushare-finance": {
+      "version": "2.0.6",
+      "installedAt": 1773985111753
+    },
+    "mx-finance-data": {
+      "version": "1.0.4",
+      "installedAt": 1773985440642
+    },
+    "mx-finance-search": {
+      "version": "1.0.4",
+      "installedAt": 1773985861364
+    },
+    "polymarket-trade": {
+      "version": "1.0.0",
+      "installedAt": 1773992161086
+    }
+  }
+}

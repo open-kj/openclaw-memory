@@ -1,0 +1,6 @@
+Starting install 
+- Resolving stock-price-query
+[31m×[39m Rate limit exceeded
+Error: Rate limit exceeded
+Done 
+EXIT_CODE=1 
