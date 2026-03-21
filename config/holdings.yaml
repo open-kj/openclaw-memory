@@ -1,0 +1,41 @@
+# holdings.yaml - 持仓配置
+# 自动生成 by setup script
+
+holdings:
+  - code: sz300394
+    name: 天孚通信
+    cost: 306.99
+    qty: 618
+    stop: 291.64
+    priority: normal
+    market: SZ
+
+  - code: sz300223
+    name: 北京君正
+    cost: 122.34
+    qty: 1530
+    stop: 116.22
+    priority: high
+    market: SZ
+    note: "原记录为炬芯科技有误，实际为北京君正 sz300223，2026-03-22更正"
+
+  - code: sz300548
+    name: 长芯博创
+    cost: 148.57
+    qty: 1000
+    stop: 141.14
+    priority: normal
+    market: SZ
+    note: "原记录为博创科技有误，实际为长芯博创 sz300548，2026-03-22更正"
+
+  - code: sh688521
+    name: 芯原股份
+    cost: 198.88
+    qty: 1000
+    stop: 188.94
+    priority: normal
+    market: SH
+
+cash: 294992.0
+total_cost: 724350.0
+updated: "2026-03-22"
