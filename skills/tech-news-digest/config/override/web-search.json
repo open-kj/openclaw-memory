@@ -1,0 +1,5 @@
+{
+  "_description": "Web search backend config",
+  "web_search_backend": "tavily",
+  "tavily_api_key": "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"
+}
