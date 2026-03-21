@@ -1,68 +1,78 @@
 """
-News Aggregator - 新闻聚合脚本
-实现: news-aggregator skill v1.0.3
+News Aggregator v2.0 - 合并 tech-news-digest RSS源
+整合财联社/研报社/凤凰财经/新浪财经/东方财富/中金在线/证券时报
 用法: python news_aggregator.py [类别]
-类别: tech|military|finance|all (默认all)
 """
 import requests
 import sys
+import os
 from datetime import datetime
+import feedparser
 
 sys.stdout.reconfigure(encoding='utf-8')
 API_KEY = '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'
 
+# 合并后的RSS源（来自tech-news-digest cn-sources.json）
+RSS_SOURCES = [
+    {'id': 'cls',   'name': '财联社',   'url': 'https://www.cls.cn/rss', 'priority': True},
+    {'id': 'yjzh',  'name': '研报社',   'url': 'https://yanjiushe.cn/rss/', 'priority': True},
+    {'id': 'ifeng', 'name': '凤凰财经', 'url': 'https://finance.ifeng.com/rss/finance.xml', 'priority': True},
+    {'id': 'sina',  'name': '新浪财经', 'url': 'https://finance.sina.com.cn/rss/finance.xml', 'priority': True},
+    {'id': 'emoney','name': '东方财富', 'url': 'https://www.eastmoney.com/rss/zixuan.xml', 'priority': True},
+    {'id': 'cnfol', 'name': '中金在线', 'url': 'https://rss.cnfol.com/', 'priority': False},
+    {'id': 'ststar','name': '证券时报', 'url': 'https://www.stockstar.com/rss', 'priority': False},
+]
+
 CATEGORIES = {
     'finance': {
         'name': '财经新闻',
-        'queries': [
-            'A股 今日行情 2026',
-            '财经 要闻 2026年3月',
-            '科技股 军工股 行情分析 2026',
-        ]
+        'topics': ['A股', '大盘', '财经', '政策'],
     },
     'tech': {
         'name': '科技新闻',
-        'queries': [
-            '科技 新闻 2026年3月',
-            'AI 人工智能 最新进展 2026',
-            '半导体 芯片 行情 2026',
-        ]
+        'topics': ['科技', 'AI', '人工智能', '半导体'],
     },
     'military': {
         'name': '军事新闻',
-        'queries': [
-            '军事 新闻 2026年3月',
-            '国防 军工 最新动态 2026',
-            '中国军事 装备 最新消息 2026',
-        ]
-    }
+        'topics': ['军事', '国防', '军工'],
+    },
 }
 
-def search_tavily(query, max_results=4):
+def fetch_rss(source, max_items=5):
+    """抓取单个RSS源"""
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (compatible; NewsBot/1.0)'}
+        r = requests.get(source['url'], headers=headers, timeout=8)
+        feed = feedparser.parse(r.content)
+        items = []
+        for entry in feed.entries[:max_items]:
+            items.append({
+                'title': entry.get('title', ''),
+                'url': entry.get('link', ''),
+                'source': source['name'],
+                'published': entry.get('published', ''),
+                'summary': entry.get('summary', '')[:120],
+            })
+        return items
+    except:
+        return []
+
+def search_tavily(query, max_results=3):
+    """Tavily搜索"""
     try:
         r = requests.post('https://api.tavily.com/search', json={
             'api_key': API_KEY,
             'query': query,
             'search_depth': 'basic',
             'max_results': max_results
-        }, timeout=15)
+        }, timeout=12)
         d = r.json()
-        return d.get('results', [])[:max_results]
-    except:
-        return []
-
-def fetch_rss(url, max_items=5):
-    """抓取RSS源（备用）"""
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        r = requests.get(url, headers=headers, timeout=8)
-        # 简单解析，实际用feedparser更好
-        return []
+        return [{'title': x['title'], 'url': x['url'], 'source': 'Tavily',
+                 'published': '', 'summary': ''} for x in d.get('results', [])[:max_results]]
     except:
         return []
 
 def deduplicate(items):
-    """去重"""
     seen = set()
     result = []
     for item in items:
@@ -72,48 +82,77 @@ def deduplicate(items):
             result.append(item)
     return result
 
-def format_output(category, items):
+def fetch_all_sources(max_per_source=3):
+    """抓取所有RSS源"""
+    all_items = []
+    for source in RSS_SOURCES:
+        items = fetch_rss(source, max_per_source)
+        all_items.extend(items)
+    return deduplicate(all_items)
+
+def filter_by_topic(items, topics):
+    """按话题过滤"""
+    if not topics:
+        return items
+    result = []
+    for item in items:
+        text = (item['title'] + item.get('summary', '')).lower()
+        for topic in topics:
+            if topic.lower() in text:
+                result.append(item)
+                break
+    return result
+
+def format_output(cat_name, items, max_items=8):
     print()
-    print(f"## {CATEGORIES[category]['name']}")
+    print('## ' + cat_name)
     print()
-    for i, item in enumerate(items, 1):
-        title = item.get('title', '无标题')[:60]
-        url = item.get('url', '')
-        snippet = item.get('content', item.get('snippet', ''))[:100]
-        print(f"{i}. [{title}]({url})")
-        if snippet:
-            print(f"   要点：{snippet}...")
+    for i, item in enumerate(items[:max_items], 1):
+        print(str(i) + '. [' + item['title'][:55] + '](' + item['url'][:65] + ')')
+        print('   来源:' + item['source'] + ' | ' + item.get('published', '')[:16])
+        if item.get('summary'):
+            print('   ' + item['summary'][:80])
         print()
 
-def run(category='all'):
+def run(category='all', use_tavily=True, use_rss=True):
     now = datetime.now().strftime('%Y-%m-%d %H:%M')
     print('=' * 60)
-    print(f'  News Aggregator - {now}')
+    print('  News Aggregator v2.0 - ' + now)
+    print('  Sources: RSS(' + str(sum(1 for s in RSS_SOURCES if s['priority'])) + '优先) + Tavily')
     print('=' * 60)
 
-    if category == 'all':
-        cats = CATEGORIES.keys()
-    else:
-        cats = [category]
+    cats = CATEGORIES.keys() if category == 'all' else [category]
 
     for cat in cats:
         if cat not in CATEGORIES:
             continue
-        all_items = []
-        for query in CATEGORIES[cat]['queries']:
-            items = search_tavily(query, max_results=4)
-            all_items.extend(items)
-        # 去重
-        unique = deduplicate(all_items)
-        format_output(cat, unique[:8])  # 每类最多8条
+        cfg = CATEGORIES[cat]
+        print()
+        print('>>> ' + cfg['name'] + ' <<<')
+
+        items = []
+        # RSS源（优先源）
+        if use_rss:
+            rss_items = fetch_all_sources(max_per_source=3)
+            rss_filtered = filter_by_topic(rss_items, cfg['topics'])
+            items.extend(rss_filtered)
+
+        # Tavily搜索（补充）
+        if use_tavily:
+            for topic in cfg['topics'][:2]:
+                tavily_results = search_tavily(topic + ' 2026', max_results=3)
+                items.extend(tavily_results)
+
+        # 去重+优先级排序
+        unique = deduplicate(items)
+        # 优先源排前面
+        unique.sort(key=lambda x: 0 if x['source'] != 'Tavily' else 1)
+        format_output(cfg['name'], unique, max_items=8)
 
     print('=' * 60)
-    print('  Powered by Tavily Search | Skill: news-aggregator v1.0.3')
+    print('  Powered by Tavily + RSS | news-aggregator v2.0 (merged tech-news-digest)')
     print('=' * 60)
 
 if __name__ == '__main__':
     cat = sys.argv[1] if len(sys.argv) > 1 else 'all'
-    if cat not in CATEGORIES and cat != 'all':
-        print('用法: python news_aggregator.py [tech|military|finance|all]')
-        sys.exit(0)
     run(cat)
