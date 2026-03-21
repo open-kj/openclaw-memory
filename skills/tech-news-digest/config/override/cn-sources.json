@@ -1,0 +1,76 @@
+{
+  "_description": "Chinese financial & tech news sources override",
+  "_version": "1.0",
+  "sources": [
+    {
+      "id": "cls-cninfo-rss",
+      "type": "rss",
+      "name": "财联社",
+      "url": "https://www.cls.cn/rss",
+      "enabled": true,
+      "priority": true,
+      "topics": ["A股", "财经", "政策"],
+      "note": "中文财经通讯社"
+    },
+    {
+      "id": "yjzh-rss",
+      "type": "rss",
+      "name": "研报社",
+      "url": "https://yanjiushe.cn/rss/",
+      "enabled": true,
+      "priority": true,
+      "topics": ["A股", "研报"],
+      "note": "券商研报精选"
+    },
+    {
+      "id": "ifeng-rss",
+      "type": "rss",
+      "name": "凤凰财经",
+      "url": "https://finance.ifeng.com/rss/finance.xml",
+      "enabled": true,
+      "priority": true,
+      "topics": ["财经", "A股"],
+      "note": "凤凰网财经"
+    },
+    {
+      "id": "sina-finance-rss",
+      "type": "rss",
+      "name": "新浪财经",
+      "url": "https://finance.sina.com.cn/rss/finance.xml",
+      "enabled": true,
+      "priority": true,
+      "topics": ["财经", "A股"],
+      "note": "新浪财经RSS"
+    },
+    {
+      "id": "eastmoney-zixuan-rss",
+      "type": "rss",
+      "name": "东方财富自选",
+      "url": "https://www.eastmoney.com/rss/zixuan.xml",
+      "enabled": true,
+      "priority": true,
+      "topics": ["财经", "A股"],
+      "note": "东方财富自选资讯"
+    },
+    {
+      "id": "cnfol-rss",
+      "type": "rss",
+      "name": "中金在线",
+      "url": "https://rss.cnfol.com/",
+      "enabled": true,
+      "priority": false,
+      "topics": ["财经", "A股"],
+      "note": "中金在线财经"
+    },
+    {
+      "id": "stockstar-rss",
+      "type": "rss",
+      "name": "证券时报",
+      "url": "https://www.stockstar.com/rss",
+      "enabled": true,
+      "priority": false,
+      "topics": ["财经", "A股"],
+      "note": "证券时报"
+    }
+  ]
+}

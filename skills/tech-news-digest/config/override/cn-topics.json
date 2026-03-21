@@ -1,0 +1,81 @@
+{
+  "_description": "Trading & A-share specific topic overrides",
+  "_version": "1.0",
+  "topics": [
+    {
+      "id": "A股",
+      "emoji": "📈",
+      "label": "A股市场",
+      "description": "A股大盘、板块、个股行情分析",
+      "search": {
+        "queries": ["A股今日行情", "上证指数深证成指", "A股板块热点"],
+        "must_include": ["A股", "上证", "深证", "沪指", "创业板"],
+        "exclude": []
+      },
+      "display": {
+        "max_items": 8,
+        "style": "detailed"
+      }
+    },
+    {
+      "id": "财经",
+      "emoji": "💰",
+      "label": "财经要闻",
+      "description": "宏观经济、政策、市场动态",
+      "search": {
+        "queries": ["财经要闻今日", "宏观经济政策", "央行货币"],
+        "must_include": ["财经", "政策", "货币", "经济数据"],
+        "exclude": []
+      },
+      "display": {
+        "max_items": 6,
+        "style": "detailed"
+      }
+    },
+    {
+      "id": "科技",
+      "emoji": "🖥️",
+      "label": "科技前沿",
+      "description": "AI、半导体、芯片科技动态",
+      "search": {
+        "queries": ["AI人工智能最新", "半导体芯片动态", "科技股"],
+        "must_include": ["AI", "人工智能", "半导体", "芯片", "科技"],
+        "exclude": []
+      },
+      "display": {
+        "max_items": 8,
+        "style": "detailed"
+      }
+    },
+    {
+      "id": "军工",
+      "emoji": "🚀",
+      "label": "军工航天",
+      "description": "军工、航天、航空板块动态",
+      "search": {
+        "queries": ["军工板块动态", "航天航空最新", "军工消息"],
+        "must_include": ["军工", "航天", "航空", "国防"],
+        "exclude": []
+      },
+      "display": {
+        "max_items": 5,
+        "style": "brief"
+      }
+    },
+    {
+      "id": "crypto",
+      "emoji": "₿",
+      "label": "Crypto",
+      "description": "Cryptocurrency and blockchain",
+      "search": {
+        "queries": ["Bitcoin BTC price", "Ethereum ETH news", "crypto market"],
+        "must_include": ["crypto", "bitcoin", "ethereum", "blockchain"],
+        "exclude": []
+      },
+      "display": {
+        "max_items": 5,
+        "style": "brief"
+      }
+    }
+  ]
+}
