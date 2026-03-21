@@ -1,117 +1,179 @@
 """
-multi_source_price_verify.py
-多源价格交叉验证 - 腾讯API + akshare + 新浪财经
-差异>0.5%自动写入SESSION-STATE.md并飞书告警
+multi_source_price_verify.py v2.0
+新增：资金流异常告警 + API故障自动切换
 """
 import requests
 import sys
-import yaml
 import os
+import time
 from datetime import datetime
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from config.settings import TAVILY_API_KEY, PRICE_DIFF_THRESHOLD, SESSION_STATE_FILE
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from config.settings import TAVILY_API_KEY, SESSION_STATE_FILE
 
 sys.stdout.reconfigure(encoding='utf-8')
 
+# API故障记录
+_api_errors = {}
+_API_PRIMARY = 'tencent'
+
 def get_tencent(code):
-    """腾讯财经"""
     try:
-        r = requests.get(f'https://qt.gtimg.cn/q={code}', timeout=8)
+        r = requests.get('https://qt.gtimg.cn/q=' + code, timeout=8)
         parts = r.text.split('~')
-        if len(parts) > 32:
+        if len(parts) > 32 and float(parts[3]) > 0:
             return {'source': '腾讯财经', 'price': float(parts[3]), 'chg': float(parts[32])}
     except:
-        return None
+        _record_error('腾讯财经')
+    return None
 
 def get_sina(code):
-    """新浪财经"""
     try:
         headers = {'Referer': 'https://finance.sina.com.cn'}
-        r = requests.get(f'https://hq.sinajs.cn/list={code}', headers=headers, timeout=8)
+        r = requests.get('https://hq.sinajs.cn/list=' + code, headers=headers, timeout=8)
         content = r.text.split('"')[1]
         parts = content.split(',')
-        if len(parts) > 10:
+        if len(parts) > 10 and float(parts[3]) > 0:
             return {'source': '新浪财经', 'price': float(parts[3]), 'chg': float(parts[32])}
     except:
-        return None
+        _record_error('新浪财经')
+    return None
 
 def get_akshare(code):
-    """akshare实时（备用）"""
     try:
         import akshare as ak
-        if code.startswith('sh'):
-            df = ak.stock_zh_index_spot()
-        else:
-            df = ak.stock_zh_a_spot_em()
-        return {'source': 'akshare', 'price': 0, 'chg': 0}  # 简化
+        df = ak.stock_zh_a_spot_em()
+        row = df[df['代码'] == code[2:]]
+        if not row.empty:
+            price = float(row['最新价'].values[0])
+            chg = float(row['涨跌幅'].values[0])
+            return {'source': 'akshare', 'price': price, 'chg': chg}
     except:
-        return None
+        _record_error('akshare')
+    return None
 
-def verify(code, name=''):
-    """多源验证，返回交叉验证结果"""
-    results = {}
-    results['腾讯财经'] = get_tencent(code)
-    results['新浪财经'] = get_sina(code)
-    results['akshare'] = get_akshare(code)
+def _record_error(source):
+    now = time.time()
+    if source not in _api_errors:
+        _api_errors[source] = []
+    _api_errors[source].append(now)
+    # 只保留1小时内的记录
+    _api_errors[source] = [t for t in _api_errors[source] if now - t < 3600]
+    if len(_api_errors[source]) >= 3:
+        _send_api_alert(source)
 
-    prices = {k: v['price'] for k, v in results.items() if v and v['price'] > 0}
+def _send_api_alert(source):
+    msg = '⚠️ 【API故障】' + source + '连续3次失败，已暂停使用'
+    print(msg)
+    _write_alert(msg)
 
-    if len(prices) < 2:
-        return {'code': code, 'name': name, 'error': '数据不足', 'results': results}
+def _write_alert(msg):
+    try:
+        ts = datetime.now().strftime('%Y-%m-%d %H:%M')
+        with open(SESSION_STATE_FILE, 'a', encoding='utf-8') as f:
+            f.write('\n## ⚠️ ' + ts + '\n' + msg + '\n')
+    except:
+        pass
+
+def _get_best_source(code):
+    """按优先级获取数据，自动切换故障源"""
+    sources = [
+        ('腾讯财经', get_tencent),
+        ('新浪财经', get_sina),
+        ('akshare', get_akshare),
+    ]
+    for name, fn in sources:
+        if name in _api_errors and len(_api_errors[name]) >= 3:
+            continue  # 该源在熔断
+        result = fn(code)
+        if result:
+            _api_errors[name] = []  # 成功则清除错误记录
+            return result
+    return None
+
+def get_money_flow_check(code):
+    """检查资金流异常：净流入/流出>5%"""
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://data.eastmoney.com'}
+        market = 1 if code.startswith('sh') else 0
+        secid = f'{market}.{code[2:]}'
+        r = requests.get(
+            'https://push2.eastmoney.com/api/qt/stock/get',
+            params={'secid': secid, 'fields': 'f62,f184',
+                    'ut': 'b2884a393a59ad64002292a3e90d46a5'},
+            headers=headers, timeout=8
+        )
+        d = r.json().get('data', {})
+        if d:
+            rate = d.get('f184', 0) or 0
+            net = d.get('f62', 0) or 0
+            return {'main_rate': rate, 'main_net': net / 1e6, 'alert': abs(rate) > 5}
+    except:
+        pass
+    return {'main_rate': 0, 'main_net': 0, 'alert': False}
+
+def verify_with_alerts(code, name=''):
+    """带告警的交叉验证"""
+    prices = {}
+    sources_used = []
+
+    for src_name, fn in [('腾讯财经', get_tencent), ('新浪财经', get_sina), ('akshare', get_akshare)]:
+        if src_name in _api_errors and len(_api_errors[src_name]) >= 3:
+            continue
+        result = fn(code)
+        if result:
+            prices[src_name] = result['price']
+            sources_used.append(src_name)
+
+    if len(prices) < 1:
+        _write_alert('⚠️ 【数据源异常】' + code + ' 所有API均失效')
+        return {'code': code, 'error': 'all_failed', 'sources_used': sources_used}
 
     avg = sum(prices.values()) / len(prices)
     diff = max(prices.values()) - min(prices.values())
     diff_ratio = diff / avg if avg > 0 else 0
 
-    status = 'OK'
-    if diff_ratio > PRICE_DIFF_THRESHOLD:
-        status = 'WARN'
-        alert_msg = f"⚠️ {code} {name} 多源价格差异{diff_ratio*100:.2f}%\n腾讯:{prices.get('腾讯财经','N/A')} 新浪:{prices.get('新浪财经','N/A')}\n差异{prices.get('腾讯财经','N/A')-prices.get('新浪财经','N/A'):.2f}元"
-        write_session_alert(alert_msg)
+    alerts = []
+
+    # 价格差异告警
+    if diff_ratio > 0.005:
+        alerts.append('价格差异{:.2f}%'.format(diff_ratio * 100))
+        _write_alert('⚠️ ' + code + ' ' + name + ' 多源价格差异{:.2f}%'.format(diff_ratio * 100))
+
+    # 资金流告警
+    mf = get_money_flow_check(code)
+    if mf.get('alert'):
+        direction = '净流入' if mf['main_rate'] > 0 else '净流出'
+        alerts.append('资金流{}>5%'.format(direction))
+        _write_alert('💰 ' + code + ' ' + name + ' 资金流{} {:.1f}%'.format(direction, mf['main_rate']))
 
     return {
-        'code': code,
-        'name': name,
+        'code': code, 'name': name,
         'prices': prices,
         'average': avg,
         'diff_ratio': diff_ratio,
-        'status': status,
-        'results': results
+        'money_flow': mf,
+        'alerts': alerts,
+        'sources_used': sources_used,
+        'status': 'WARN' if alerts else 'OK',
     }
 
-def write_session_alert(msg):
-    """写入SESSION-STATE.md告警"""
-    try:
-        with open(SESSION_STATE_FILE, 'a', encoding='utf-8') as f:
-            ts = datetime.now().strftime('%Y-%m-%d %H:%M')
-            f.write(f'\n\n## ⚠️ 价格异常 [{ts}]\n{msg}\n')
-        print(f'[ALERT] {msg}')
-    except:
-        pass
-
 def verify_all(codes_names):
-    """批量验证"""
-    print('=== 多源价格交叉验证 ===')
-    print()
-    alerts = []
+    print('=== 多源价格验证 v2.0（含资金流+API切换）===')
+    alerts_all = []
     for code, name in codes_names:
-        v = verify(code, name)
-        p = v.get('prices', {})
-        status_icon = '⚠️' if v['status'] == 'WARN' else '✅'
-        print(f'{status_icon} [{code}] {name}')
-        for src, price in p.items():
-            print(f'    {src}: {price:.2f}')
-        if v.get('diff_ratio', 0) > 0:
-            print(f'    均价:{v["average"]:.2f} 差异率:{v["diff_ratio"]*100:.2f}%')
-        if v['status'] == 'WARN':
-            alerts.append(v)
+        v = verify_with_alerts(code, name)
+        icon = '⚠️' if v['status'] == 'WARN' else '✅'
+        print(icon + ' [' + code + '] ' + name)
+        for src, price in v.get('prices', {}).items():
+            print('    ' + src + ': ' + str(price))
+        if v.get('alerts'):
+            for a in v['alerts']:
+                print('    ⚠️ ' + a)
+            alerts_all.append(v)
         print()
-    if alerts:
-        print(f'⚠️ {len(alerts)}只股票价格异常，请核查')
-    else:
-        print('✅ 全部验证通过')
-    return alerts
+    print('API故障记录: ' + str({k: len(v) for k, v in _api_errors.items()}))
+    return alerts_all
 
 if __name__ == '__main__':
     holdings = [
@@ -120,4 +182,4 @@ if __name__ == '__main__':
         ('sz300548', '长芯博创'),
         ('sh688521', '芯原股份'),
     ]
-    alerts = verify_all(holdings)
+    verify_all(holdings)
