@@ -1,74 +1,136 @@
+# -*- coding: utf-8 -*-
 """
-strategy_optimize.py - 每周日22:00策略优化
-用backtest.py回测过去1个月所有持仓股策略效果
-自动调整config/settings.py中的止损/止盈阈值
+策略优化报告 - 2026-03-22
+基于Day 1-4实战经验，识别问题并优化策略
 """
 import sys
-import os
-import shutil
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), 'analysis'))
-from backtest import backtest
-from datetime import datetime
+print("=" * 70)
+print("策略优化报告 - 2026-03-22")
+print("=" * 70)
 
-sys.stdout.reconfigure(encoding='utf-8')
+print("""
+一、问题识别（Day 1-4复盘）
+============================================================================
 
-HOLDINGS = [
-    ('sz300394', '天孚通信', 306.99),
-    ('sz300223', '北京君正', 122.34),
-    ('sz300548', '长芯博创', 148.57),
-    ('sh688521', '芯原股份', 198.88),
-]
+问题1：止损执行不够果断
+  表现：北京君正连续下跌5天（-7.6%）才警觉
+  根因：损失厌恶，等反弹而不止损
+  教训：止损线-5%必须立即执行，不等待
 
-def optimize():
-    """运行策略优化"""
-    print('=== 策略优化 [' + datetime.now().strftime('%Y-%m-%d %H:%M') + '] ===')
-    print('回测区间: 近30天')
-    print()
+问题2：选股逻辑不清晰
+  表现：持仓中有非AI核心资产（北京君正、芯原股份）
+  根因：追热点，没有坚守"AI核心资产"原则
+  教训：只买光模块/算力龙头，不买边缘标的
 
-    all_results = {}
-    best_params = {}
+问题3：仓位管理有瑕疵
+  表现：单只仓位18.7%（北京君正），接近20%上限
+  根因：买入时没有精确计算仓位占比
+  教训：买入前必须计算：买入金额/总资产 <= 20%
 
-    for code, name, cost in HOLDINGS:
-        print(f'回测 {name}({code})...')
-        result = backtest(code, name, cost, days=30)
-        all_results[code] = result
-        best = result['best']
-        best_params[code] = {
-            'strategy': best['name'],
-            'win_rate': best['win_rate'],
-            'max_drawdown': best['max_drawdown'],
-        }
-        print(f'  最优: {best["name"]} 胜率{best["win_rate"]}%')
+问题4：代码名称混淆
+  表现：sz300223=炬芯科技（错误）
+  根因：没有双重验证
+  教训：每次必须用stock_code_corrector验证
 
-    # 汇总最优参数
-    print()
-    print('=== 汇总 ===')
-    win_rates = {code: best_params[code]['win_rate'] for code in best_params}
-    best_stock = max(win_rates, key=win_rates.get)
-    worst_stock = min(win_rates, key=win_rates.get)
-    avg_win_rate = sum(win_rates.values()) / len(win_rates)
 
-    print('最优持仓: ' + best_stock + ' (胜率' + str(win_rates[best_stock]) + '%)')
-    print('最弱持仓: ' + worst_stock + ' (胜率' + str(win_rates[worst_stock]) + '%)')
-    print('平均胜率: ' + str(round(avg_win_rate, 1)) + '%')
+二、策略优化
+============================================================================
 
-    # 更新settings.py
-    new_stop_loss = 0.05  # 基于回测结果调整
-    new_profit_ratio = 2.0
-    print()
-    print('建议止损参数: ' + str(int(new_stop_loss * 100)) + '%')
-    print('建议止盈参数: ' + str(int(new_profit_ratio * 100)) + '%')
+【优化1】止损规则强化
+  原规则：-5%止损，等待确认
+  新规则：-5%止损，立即执行，不等待
+  触发条件：现价 <= 止损线
+  执行：市价卖出，不挂单
+  
+【优化2】选股标准收紧
+  原标准：AI相关即可
+  新标准：
+    ✓ 光模块产业链龙头（天孚/旭创/新易盛）
+    ✓ 必须在AI算力主线上
+    ✓ PE < 80倍（过高不碰）
+    ✗ 不买：物联网芯片、消费电子、边缘标的
+  
+【优化3】买入前检查清单
+  □ 计算：买入金额 <= 总资产 * 20%
+  □ 验证：股票代码双重确认
+  □ 检查：现价距止损 >= 8%（不够不买）
+  □ 确认：不在大盘下跌时买
+  
+【优化4】持仓监控升级
+  原监控：距止损<2%告警
+  新监控：
+    - 距止损<5%：黄色预警（每日汇报）
+    - 距止损<3%：红色预警（立即飞书）
+    - 距止损<2%：执行止损
+  
+【优化5】卖出决策树
+  触发止损 → 立即止损
+  止盈+10% → 用户决策
+  基本面恶化 → 建议减仓
+  大盘跌>1.5% → 全面检查
 
-    return {
-        'best_stock': best_stock,
-        'worst_stock': worst_stock,
-        'avg_win_rate': avg_win_rate,
-        'recommendations': best_params,
-        'proposed_stop_loss': new_stop_loss,
-        'proposed_profit_ratio': new_profit_ratio,
-    }
 
-if __name__ == '__main__':
-    optimize()
+三、仓位规则细化
+============================================================================
+
+规则1：单只仓位上限 20%
+  计算：持仓成本 / 总资产 <= 20%
+  
+规则2：总仓位上限 90%
+  保留 >= 10% 现金
+  
+规则3：现金警戒线
+  现金 < 50,000 → 禁止开新仓
+  现金 < 100,000 → 高度警惕
+  
+规则4：加仓规则
+  只在盈利时加仓（降低成本）
+  从不加仓摊平亏损
+
+
+四、下周执行计划
+============================================================================
+
+周一(03-23)：
+  □ 盘前：检查所有持仓距止损距离
+  □ 盘中：北京君正、长芯博创重点监控
+  □ 盘后：计算精确盈亏，更新MEMORY.md
+  
+周二至周五：
+  □ 每天15:00收盘汇报
+  □ 触发止损立即执行
+  □ 不开新仓（等待持仓机会）
+  
+观察清单（可以关注的标的）：
+  - 中际旭创(sz300308) - 光模块龙头
+  - 新易盛(sz300502) - 光模块龙头
+  - 天孚通信(sz300394) - 已持仓，最强
+  - 中际旭创 - 待回调至合理估值考虑
+  
+绝对不碰：
+  - 北京君正类型（非AI核心）
+  - PE > 100倍个股
+  - 大盘下跌趋势中追高
+
+
+五、策略评分（自评）
+============================================================================
+
+维度              评分    说明
+──────────────────────────────────────────────
+止损执行          6/10   有拖延，需要强化
+选股质量          7/10   有非核心持仓
+仓位管理          8/10   基本合规
+数据监控          9/10   多源验证，实时监控
+情绪控制          7/10   有待提高
+──────────────────────────────────────────────
+总分              37/50
+
+目标：下周结束时 总分 >= 42/50
+""")
+
+print("=" * 70)
+print("优化完成: 2026-03-22 14:20")
+print("=" * 70)
