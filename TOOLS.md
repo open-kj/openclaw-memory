@@ -1,5 +1,10 @@
 # TOOLS.md - Local Notes
 
+## 工作目录规范
+- **Excel/文件读取/输出目录**：`D:\AI_Scripts\2026-03-23_深户团购_E公司报价清单\03_Excel数据处理\`
+- **输出文件放入对应子目录的output文件夹**
+- 不再在workspace里中转，直接读和写到这个路径
+
 Skills define *how* tools work. This file is for *your* specifics — the stuff that's unique to your setup.
 
 ## What Goes Here
