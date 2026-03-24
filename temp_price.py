@@ -1,52 +1,91 @@
-import urllib.request
+# -*- coding: utf-8 -*-
+import requests
+import json
+import sys
 
-stocks = ['sz300394', 'sh688521']
-prices = {}
-for s in stocks:
-    url = f'https://qt.gtimg.cn/q={s}'
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as r:
-            data = r.read().decode('gbk')
-            parts = data.split('=')
-            if len(parts) > 1:
-                quoted = parts[1].strip().strip('"')
-                fields = quoted.split('~')
-                name = fields[1]
-                price = fields[3]
-                change_pct = fields[32]
-                prices[s] = {'name': name, 'price': float(price), 'change_pct': float(change_pct)}
-    except Exception as e:
-        prices[s] = {'error': str(e)}
-
-# 止损线
-stop_loss = {'sz300394': 291.64, 'sh688521': 188.94}
-bands = {
-    'sz300394': {'low_buy': 305.00, 'high_sell': 320.00, 'support': 300.00},
-    'sh688521': {'low_buy': 195.00, 'high_sell': 208.00, 'support': 192.00}
+stocks = {
+    'sz300394': '天孚通信',
+    'sh688521': '芯原股份',
+    'sz002594': '比亚迪',
+    'sh688981': '中芯国际'
 }
 
-alerts = []
-for s, d in prices.items():
-    if 'error' in d:
-        continue
-    p = d['price']
-    sl = stop_loss[s]
-    b = bands[s]
-    name = d['name']
-    
-    if p <= sl:
-        alerts.append(f"!!STOP_LOSS!! {name}({s}) 现价{p} <= 止损线{sl}")
-    elif p <= b['support']:
-        alerts.append(f"!!SUPPORT!! {name}({s}) 现价{p} <= 支撑位{b['support']}，暂停加仓")
-    elif p <= b['low_buy']:
-        alerts.append(f"!!LOW_BUY!! {name}({s}) 现价{p} <= 波段低吸{b['low_buy']}，建议加仓2万")
-    elif p >= b['high_sell']:
-        alerts.append(f"!!HIGH_SELL!! {name}({s}) 现价{p} >= 波段高抛{b['high_sell']}，建议减仓")
-    else:
-        margin = p - sl
-        pct = (p - sl) / sl * 100
-        alerts.append(f"OK {name}({s}) 现价{p} 距止损{margin:.2f}({pct:.1f}%) 安全")
+# 止损线和预警线
+levels = {
+    'sz300394': {'stop': 291.64, 'warn1': 300.00, 'buy': 305.00, 'sell': 320.00, 'prev': 298.49},
+    'sh688521': {'stop': 188.94, 'warn1': 192.00, 'buy': 195.00, 'sell': 198.00, 'prev': 190.50, 'danger': True},
+    'sz002594': {'stop': 103.45, 'buy': 105.00, 'sell': 115.00, 'prev': 107.63},
+    'sh688981': {'stop': 93.14, 'warn1': 95.00, 'sell': 103.00, 'prev': 98.04, 'new': True}
+}
 
-for a in alerts:
-    print(a)
+codes = ','.join(stocks.keys())
+url = f'https://qt.gtimg.cn/q={codes}'
+
+try:
+    resp = requests.get(url, timeout=5)
+    resp.encoding = 'gbk'
+    text = resp.text
+    
+    print('=== 持仓实时价格 ===')
+    print('时间: 13:30')
+    print()
+    
+    alerts = []
+    
+    for code, name in stocks.items():
+        # 解析腾讯API数据
+        search_str = f'"{code}='
+        idx = text.find(search_str)
+        if idx == -1:
+            print(f'{name}({code}): 无法获取数据')
+            continue
+            
+        start = text.find('="', idx) + 2
+        end = text.find('";', start)
+        data = text[start:end]
+        parts = data.split('~')
+        
+        if len(parts) < 10:
+            print(f'{name}({code}): 数据解析错误')
+            continue
+            
+        price = float(parts[3])
+        prev_close = float(parts[4])
+        change = price - prev_close
+        change_pct = (change / prev_close) * 100
+        
+        print(f'{name}({code}): 现价={price} 昨收={prev_close} 涨跌={change:+.2f}({change_pct:+.2f}%)')
+        
+        # 检查止损线
+        lv = levels.get(code, {})
+        stop = lv.get('stop', 0)
+        if price <= stop:
+            alerts.append(f"🚨 【止损预警】{name}({code}) 现价{price} <= 止损线{stop}！立即通知用户决策！")
+        
+        # 检查警示支撑位
+        warn1 = lv.get('warn1', 0)
+        if warn1 and price <= warn1:
+            alerts.append(f"⚠️ {name}({code}) 现价{price} <= 警示支撑位{warn1}")
+        
+        # 检查波段低吸预警
+        buy = lv.get('buy', 0)
+        if buy and price <= buy and price > stop:
+            alerts.append(f"📍 波段低吸预警: {name}({code}) 现价{price} <= 低吸线{buy}")
+        
+        # 检查波段高抛预警
+        sell = lv.get('sell', 0)
+        if sell and price >= sell:
+            alerts.append(f"📍 波段高抛预警: {name}({code}) 现价{price} >= 高抛线{sell}")
+    
+    print()
+    if alerts:
+        print('=== 触发条件 ===')
+        for a in alerts:
+            print(a)
+    else:
+        print('=== 无触发条件 ===')
+        print('所有持仓价格运行在安全区间')
+    
+except Exception as e:
+    print(f'Error: {e}')
+    sys.exit(1)
