@@ -1,5 +1,11 @@
 # TOOLS.md - Local Notes
 
+## 数据源（2026-03-25确认）
+- 腾讯财经：qt.gtimg.cn ✅ 主数据源
+- 新浪财经：hq.sinajs.cn ✅ 备用数据源
+- 东方财富：push2.eastmoney.com ❌ 连接被拒
+- 脚本路径：D:\AI_Scripts\get_prices_v4.py
+
 ## 工作目录规范
 - **Excel/文件读取/输出目录**：`D:\AI_Scripts\2026-03-23_深户团购_E公司报价清单\03_Excel数据处理\`
 - **输出文件放入对应子目录的output文件夹**
