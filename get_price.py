@@ -1,62 +1,27 @@
+# -*- coding: utf-8 -*-
 import urllib.request
-import json
+import sys
 
-stocks = [
-    ('sz300394', '天孚通信'),
-    ('sh688521', '芯原股份'),
-    ('sz002594', '比亚迪'),
-    ('sh688981', '中芯国际')
-]
+stocks = ['sz300394', 'sh688521', 'sz002594', 'sh688981']
+url = 'https://qt.gtimg.cn/q=' + ','.join(stocks)
+req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+resp = urllib.request.urlopen(req, timeout=10)
+data = resp.read().decode('gbk')
 
+lines = data.strip().split('\n')
 results = []
-for code, name in stocks:
-    url = f'https://qt.gtimg.cn/q={code}'
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = resp.read().decode('gbk')
-            parts = data.split('~')
-            if len(parts) > 10:
-                price = parts[3]
-                close = parts[4]
-                open_p = parts[5]
-                print(f'{name} {code}: 现价={price}, 昨收={close}, 开盘={open_p}')
-                results.append((name, code, float(price), float(close)))
-            else:
-                print(f'{name} {code}: 数据解析失败')
-    except Exception as e:
-        print(f'{name} {code}: 错误 - {e}')
-
-# 止损线和波段检查
-print('\n=== 止损/波段检查 ===')
-check_items = [
-    ('天孚通信', 'sz300394', 298.49, 291.64, 300.00, 305.00, 320.00),
-    ('芯原股份', 'sh688521', 190.50, 188.94, 192.00, 195.00, 198.00),
-    ('比亚迪', 'sz002594', 107.63, 103.45, 103.45, 105.00, 115.00),
-    ('中芯国际', 'sh688981', 98.04, 93.14, 93.14, 95.00, 103.00),
-]
-
-for name, code, close, stop, support, low_buy, high_sell in check_items:
-    price = None
-    for n, c, p, cl in results:
-        if c == code:
-            price = p
-            break
-    if price is None:
-        print(f'{name}: 无法获取现价')
+for line in lines:
+    if '=' not in line:
         continue
+    parts = line.split('~')
+    if len(parts) > 10:
+        code = parts[0].split('_')[1] if '_' in parts[0] else parts[0]
+        name = parts[1]
+        price = float(parts[3])
+        yesterday_close = float(parts[4])
+        change = (price - yesterday_close) / yesterday_close * 100
+        results.append(f'{code}|{name}|{price:.2f}|{yesterday_close:.2f}|{change:+.2f}%')
 
-    alerts = []
-    if price <= stop:
-        alerts.append(f'🚨 止损预警! 现价{price} <= 止损线{stop}')
-    elif price <= support:
-        alerts.append(f'⚠️ 支撑位警示 现价{price} <= 支撑{support}')
-    if price <= low_buy:
-        alerts.append(f'📌 波段低吸预警 现价{price} <= 低吸线{low_buy}')
-    if price >= high_sell:
-        alerts.append(f'📌 波段高抛预警 现价{price} >= 高抛线{high_sell}')
-
-    if alerts:
-        print(f'{name}: {" | ".join(alerts)}')
-    else:
-        print(f'{name}: 现价{price} 正常')
+sys.stdout.reconfigure(encoding='utf-8')
+for r in results:
+    print(r)
