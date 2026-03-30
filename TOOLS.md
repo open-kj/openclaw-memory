@@ -45,3 +45,27 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.
+
+---
+
+## Windows exec 注意事项
+
+### Git 中文 commit message 问题
+- **问题**：&& 链式命令中中文 commit message 在 PowerShell 中报编码错误（ParserError）
+- **解决**：用 `git -C "path"` 语法替代 `cd path && git`，commit message 用纯英文
+- **示例**：
+  ```
+  # 错误（中文报错）
+  cd "C:\path" && git commit -m "中文"
+
+  # 正确
+  git -C "C:\path" add .
+  git -C "C:\path" commit -m "English message only"
+  git -C "C:\path" push
+  ```
+
+### 房产/新闻平台 web_fetch 反爬策略
+- **58同城/贝壳/安居客**：强制登录或验证码 → 直接抓取失败
+- **替代方案**：用百度搜索 site:过滤 + 快照获取信息
+- **安居客商铺写字楼**：URL 结构已变，需从首页重新导航
+- **贝壳**：直接 URL 会跳转登录页，需用 m.ke.com 移动端尝试
