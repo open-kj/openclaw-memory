@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "skills": {
+    "data-analysis": {
+      "version": "1.0.2",
+      "installedAt": 1773978251349
+    },
+    "china-stock-analysis": {
+      "version": "1.0.0",
+      "installedAt": 1773978847722
+    },
+    "tech-news-digest": {
+      "version": "3.15.0",
+      "installedAt": 1773978902095
+    },
+    "stock-price-query": {
+      "version": "1.0.7",
+      "installedAt": 1773980940523
+    },
+    "productivity": {
+      "version": "1.0.4",
+      "installedAt": 1773981303018
+    },
+    "tushare-finance": {
+      "version": "2.0.6",
+      "installedAt": 1773985111753
+    },
+    "mx-finance-data": {
+      "version": "1.0.4",
+      "installedAt": 1773985440642
+    },
+    "mx-finance-search": {
+      "version": "1.0.4",
+      "installedAt": 1773985861364
+    },
+    "polymarket-trade": {
+      "version": "1.0.0",
+      "installedAt": 1773992161086
+    },
+    "baidu-hot-monitor": {
+      "version": "1.0.0",
+      "installedAt": 1775386626801
+    },
+    "douyin-hot": {
+      "version": "1.0.5",
+      "installedAt": 1775386631456
+    },
+    "web-hot": {
+      "version": "1.0.0",
+      "installedAt": 1775386681319
+    },
+    "cn-trends-aggregator": {
+      "version": "1.0.0",
+      "installedAt": 1775386690882
+    },
+    "ai-web-automation": {
+      "version": "1.0.0",
+      "installedAt": 1775386695003
+    },
+    "ai-workflow-automation": {
+      "version": "1.0.0",
+      "installedAt": 1775386741576
+    },
+    "ai-intelligent-email-automation": {
+      "version": "1.0.0",
+      "installedAt": 1775386750555
+    },
+    "a-stock-trading-assistant": {
+      "version": "1.0.0",
+      "installedAt": 1775386755483
+    },
+    "ac-stock-ultrashort": {
+      "version": "1.0.0",
+      "installedAt": 1775386760807
+    },
+    "office": {
+      "version": "1.0.0",
+      "installedAt": 1775386803078
+    },
+    "ppt-generator": {
+      "version": "1.0.0",
+      "installedAt": 1775386808851
+    },
+    "tiangong-wps-ppt-automation": {
+      "version": "0.1.0",
+      "installedAt": 1775386861331
+    }
+  }
+}
